@@ -61,4 +61,4 @@ class DashboardPage extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 
+            const SizedBox(height:24), 
