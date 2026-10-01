@@ -1,4 +1,4 @@
- import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(const ProInvoiceApp());
@@ -23,6 +23,10 @@ class ProInvoiceApp extends StatelessWidget {
   }
 }
 
+// ============================================================
+// DASHBOARD
+// ============================================================
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -33,10 +37,19 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final List<Map<String, dynamic>> invoices = [];
 
-  void addInvoice(Map<String, dynamic> invoice) {
-    setState(() {
-      invoices.add(invoice);
-    });
+  Future<void> createInvoice() async {
+    final invoice = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NewInvoicePage(),
+      ),
+    );
+
+    if (invoice != null) {
+      setState(() {
+        invoices.add(invoice);
+      });
+    }
   }
 
   @override
@@ -54,29 +67,21 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      body: invoices.isEmpty
-          ? _emptyDashboard(context)
-          : _invoiceList(context),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final invoice = await Navigator.push<Map<String, dynamic>>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const NewInvoicePage(),
-            ),
-          );
 
-          if (invoice != null) {
-            addInvoice(invoice);
-          }
-        },
+      body: invoices.isEmpty
+          ? _emptyDashboard()
+          : _invoiceList(),
+
+      // ONE new invoice button only.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: createInvoice,
         icon: const Icon(Icons.add),
         label: const Text('New Invoice'),
       ),
     );
   }
 
-  Widget _emptyDashboard(BuildContext context) {
+  Widget _emptyDashboard() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -95,41 +100,26 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: Colors.white,
               ),
             ),
+
             const SizedBox(height: 24),
+
             const Text(
-              'Create your first invoice',
+              'No invoices yet',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,
             ),
+
             const SizedBox(height: 10),
+
             const Text(
-              'Create professional invoices quickly and easily.',
+              'Your invoices will appear here.',
               style: TextStyle(
                 color: Colors.grey,
                 fontSize: 16,
               ),
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              onPressed: () async {
-                final invoice =
-                    await Navigator.push<Map<String, dynamic>>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const NewInvoicePage(),
-                  ),
-                );
-
-                if (invoice != null) {
-                  addInvoice(invoice);
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Create New Invoice'),
             ),
           ],
         ),
@@ -137,7 +127,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _invoiceList(BuildContext context) {
+  Widget _invoiceList() {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -148,16 +138,21 @@ class _DashboardPageState extends State<DashboardPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
+
         const SizedBox(height: 6),
+
         Text(
           '${invoices.length} invoice${invoices.length == 1 ? '' : 's'}',
-          style: const TextStyle(color: Colors.grey),
+          style: const TextStyle(
+            color: Colors.grey,
+          ),
         ),
+
         const SizedBox(height: 20),
-        ...invoices.asMap().entries.map(
-          (entry) {
-            final invoice = entry.value;
-            final total = invoice['total'] as double;
+
+        ...invoices.map(
+          (invoice) {
+            final double total = invoice['total'] as double;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -191,6 +186,39 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
+// ============================================================
+// INVOICE ITEM
+// ============================================================
+
+class InvoiceItem {
+  final TextEditingController descriptionController;
+  final TextEditingController quantityController;
+  final TextEditingController priceController;
+
+  InvoiceItem()
+      : descriptionController = TextEditingController(),
+        quantityController = TextEditingController(text: '1'),
+        priceController = TextEditingController();
+
+  double get quantity =>
+      double.tryParse(quantityController.text) ?? 0;
+
+  double get price =>
+      double.tryParse(priceController.text) ?? 0;
+
+  double get total => quantity * price;
+
+  void dispose() {
+    descriptionController.dispose();
+    quantityController.dispose();
+    priceController.dispose();
+  }
+}
+
+// ============================================================
+// NEW INVOICE
+// ============================================================
+
 class NewInvoicePage extends StatefulWidget {
   const NewInvoicePage({super.key});
 
@@ -202,9 +230,10 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
   final clientController = TextEditingController();
   final emailController = TextEditingController();
   final jobNumberController = TextEditingController();
-  final descriptionController = TextEditingController();
-  final quantityController = TextEditingController(text: '1');
-  final priceController = TextEditingController();
+
+  final List<InvoiceItem> items = [
+    InvoiceItem(),
+  ];
 
   double vatRate = 20.0;
 
@@ -213,16 +242,19 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
     clientController.dispose();
     emailController.dispose();
     jobNumberController.dispose();
-    descriptionController.dispose();
-    quantityController.dispose();
-    priceController.dispose();
+
+    for (final item in items) {
+      item.dispose();
+    }
+
     super.dispose();
   }
 
   double get subtotal {
-    final quantity = double.tryParse(quantityController.text) ?? 0;
-    final price = double.tryParse(priceController.text) ?? 0;
-    return quantity * price;
+    return items.fold(
+      0,
+      (sum, item) => sum + item.total,
+    );
   }
 
   double get vat {
@@ -231,6 +263,23 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
 
   double get total {
     return subtotal + vat;
+  }
+
+  void addItem() {
+    setState(() {
+      items.add(InvoiceItem());
+    });
+  }
+
+  void removeItem(int index) {
+    if (items.length == 1) {
+      return;
+    }
+
+    setState(() {
+      items[index].dispose();
+      items.removeAt(index);
+    });
   }
 
   void saveInvoice() {
@@ -244,13 +293,12 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
         'clientName': clientController.text.trim(),
         'email': emailController.text.trim(),
         'jobNumber': jobNumberController.text.trim(),
-        'description': descriptionController.text.trim(),
         'total': total,
       },
     );
   }
 
-  InputDecoration decoration(String label) {
+  InputDecoration fieldDecoration(String label) {
     return InputDecoration(
       labelText: label,
       border: OutlineInputBorder(
@@ -265,6 +313,7 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
       appBar: AppBar(
         title: const Text('New Invoice'),
       ),
+
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -278,9 +327,10 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
 
           const SizedBox(height: 24),
 
+          // CLIENT
           TextField(
             controller: clientController,
-            decoration: decoration('Client name'),
+            decoration: fieldDecoration('Client name'),
           ),
 
           const SizedBox(height: 16),
@@ -288,64 +338,56 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
           TextField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: decoration('Client email'),
+            decoration: fieldDecoration('Client email'),
           ),
 
           const SizedBox(height: 16),
 
           TextField(
             controller: jobNumberController,
-            decoration: decoration('Order / Job Number'),
+            decoration: fieldDecoration('Order / Job Number'),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 30),
 
-          const Text(
-            'Item',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          TextField(
-            controller: descriptionController,
-            decoration: decoration('Description'),
-          ),
-
-          const SizedBox(height: 16),
-
+          // ITEMS HEADER
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: quantityController,
-                  keyboardType: TextInputType.number,
-                  decoration: decoration('Quantity'),
-                  onChanged: (_) => setState(() {}),
+              const Text(
+                'Items',
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: priceController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: decoration('Price (£)'),
-                  onChanged: (_) => setState(() {}),
-                ),
+
+              OutlinedButton.icon(
+                onPressed: addItem,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Item'),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
+          // ITEM CARDS
+          ...items.asMap().entries.map(
+            (entry) {
+              final index = entry.key;
+              final item = entry.value;
+
+              return _itemCard(index, item);
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // VAT
           DropdownButtonFormField<double>(
-            initialValue: vatRate,
-            decoration: decoration('VAT rate'),
+            value: vatRate,
+            decoration: fieldDecoration('VAT rate'),
             items: const [
               DropdownMenuItem(
                 value: 0,
@@ -369,19 +411,28 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
             },
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 25),
 
+          // TOTALS
           Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
                 children: [
                   _summaryRow('Subtotal', subtotal),
+
                   const SizedBox(height: 10),
-                  _summaryRow('VAT (${vatRate.toStringAsFixed(0)}%)', vat),
+
+                  _summaryRow(
+                    'VAT (${vatRate.toStringAsFixed(0)}%)',
+                    vat,
+                  ),
+
                   const Divider(height: 25),
+
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Total',
@@ -390,6 +441,7 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       Text(
                         '£${total.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -424,16 +476,105 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
     );
   }
 
-  Widget _summaryRow(String label, double value) {
+  Widget _itemCard(int index, InvoiceItem item) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Item ${index + 1}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+
+                if (items.length > 1)
+                  IconButton(
+                    onPressed: () => removeItem(index),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: item.descriptionController,
+              decoration: fieldDecoration('Description'),
+              onChanged: (_) => setState(() {}),
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: item.quantityController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: fieldDecoration('Quantity'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: TextField(
+                    controller: item.priceController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: fieldDecoration('Unit price (£)'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'Item total: £${item.total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, double amount) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 16),
+          style: const TextStyle(
+            fontSize: 16,
+          ),
         ),
         Text(
-          '£${value.toStringAsFixed(2)}',
+          '£${amount.toStringAsFixed(2)}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
