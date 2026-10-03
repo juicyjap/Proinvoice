@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'screens/company_profile.dart';
+import 'screens/clients.dart';
+import 'screens/saved_items.dart';
+import 'screens/invoice_templates.dart';
 
 void main() {
   runApp(const ProInvoiceApp());
@@ -23,10 +27,6 @@ class ProInvoiceApp extends StatelessWidget {
   }
 }
 
-// ============================================================
-// DASHBOARD
-// ============================================================
-
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -38,18 +38,27 @@ class _DashboardPageState extends State<DashboardPage> {
   final List<Map<String, dynamic>> invoices = [];
 
   Future<void> createInvoice() async {
-    final invoice = await Navigator.push<Map<String, dynamic>>(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (_) => const NewInvoicePage(),
+        builder: (context) => const NewInvoicePage(),
       ),
     );
 
-    if (invoice != null) {
+    if (result != null) {
       setState(() {
-        invoices.add(invoice);
+        invoices.add(result);
       });
     }
+  }
+
+  void openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsPage(),
+      ),
+    );
   }
 
   @override
@@ -62,17 +71,64 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            onPressed: openSettings,
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
           ),
         ],
       ),
-
       body: invoices.isEmpty
-          ? _emptyDashboard()
-          : _invoiceList(),
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.receipt_long,
+                    size: 70,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No invoices yet',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text('Tap + to create your first invoice'),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: invoices.length,
+              itemBuilder: (context, index) {
+                final invoice = invoices[index];
 
-      // ONE new invoice button only.
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.receipt),
+                    ),
+                    title: Text(
+                      invoice['invoiceNumber'] ?? 'Invoice',
+                    ),
+                    subtitle: Text(
+                      invoice['client']?.isNotEmpty == true
+                          ? invoice['client']
+                          : 'No client',
+                    ),
+                    trailing: Text(
+                      '£${(invoice['total'] as double).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: createInvoice,
         icon: const Icon(Icons.add),
@@ -80,115 +136,95 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+}
 
-  Widget _emptyDashboard() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1565C0),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: const Icon(
-                Icons.receipt_long,
-                size: 55,
-                color: Colors.white,
-              ),
-            ),
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
 
-            const SizedBox(height: 24),
-
-            const Text(
-              'No invoices yet',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            const Text(
-              'Your invoices will appear here.',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+  void openPage(
+    BuildContext context,
+    Widget page,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => page,
       ),
     );
   }
 
-  Widget _invoiceList() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'Your invoices',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+      ),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.business),
+            title: const Text('Company Profile'),
+            subtitle: const Text(
+              'Business name, address, phone and VAT',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              openPage(
+                context,
+                const CompanyProfilePage(),
+              );
+            },
           ),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          '${invoices.length} invoice${invoices.length == 1 ? '' : 's'}',
-          style: const TextStyle(
-            color: Colors.grey,
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('Clients'),
+            subtitle: const Text(
+              'Manage your saved clients',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              openPage(
+                context,
+                const ClientsPage(),
+              );
+            },
           ),
-        ),
-
-        const SizedBox(height: 20),
-
-        ...invoices.map(
-          (invoice) {
-            final double total = invoice['total'] as double;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.receipt_long),
-                ),
-                title: Text(
-                  invoice['invoiceNumber'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  invoice['clientName'].isEmpty
-                      ? 'No client name'
-                      : invoice['clientName'],
-                ),
-                trailing: Text(
-                  '£${total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.inventory_2),
+            title: const Text('Saved Items'),
+            subtitle: const Text(
+              'Save labour, parts and other items',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              openPage(
+                context,
+                const SavedItemsPage(),
+              );
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.palette),
+            title: const Text('Invoice Templates'),
+            subtitle: const Text(
+              'Choose your invoice design',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              openPage(
+                context,
+                const InvoiceTemplatesPage(),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
-
-// ============================================================
-// INVOICE ITEM
-// ============================================================
 
 class InvoiceItem {
   final TextEditingController descriptionController;
@@ -215,10 +251,6 @@ class InvoiceItem {
   }
 }
 
-// ============================================================
-// NEW INVOICE
-// ============================================================
-
 class NewInvoicePage extends StatefulWidget {
   const NewInvoicePage({super.key});
 
@@ -236,19 +268,6 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
   ];
 
   double vatRate = 20.0;
-
-  @override
-  void dispose() {
-    clientController.dispose();
-    emailController.dispose();
-    jobNumberController.dispose();
-
-    for (final item in items) {
-      item.dispose();
-    }
-
-    super.dispose();
-  }
 
   double get subtotal {
     return items.fold(
@@ -284,27 +303,29 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
 
   void saveInvoice() {
     final invoiceNumber =
-        'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
+        'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
     Navigator.pop(
       context,
       {
         'invoiceNumber': invoiceNumber,
-        'clientName': clientController.text.trim(),
-        'email': emailController.text.trim(),
-        'jobNumber': jobNumberController.text.trim(),
+        'client': clientController.text.trim(),
         'total': total,
       },
     );
   }
 
-  InputDecoration fieldDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-    );
+  @override
+  void dispose() {
+    clientController.dispose();
+    emailController.dispose();
+    jobNumberController.dispose();
+
+    for (final item in items) {
+      item.dispose();
+    }
+
+    super.dispose();
   }
 
   @override
@@ -313,24 +334,16 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
       appBar: AppBar(
         title: const Text('New Invoice'),
       ),
-
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Invoice details',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // CLIENT
           TextField(
             controller: clientController,
-            decoration: fieldDecoration('Client name'),
+            decoration: const InputDecoration(
+              labelText: 'Client Name',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.person),
+            ),
           ),
 
           const SizedBox(height: 16),
@@ -338,31 +351,37 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
           TextField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: fieldDecoration('Client email'),
+            decoration: const InputDecoration(
+              labelText: 'Client Email',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.email),
+            ),
           ),
 
           const SizedBox(height: 16),
 
           TextField(
             controller: jobNumberController,
-            decoration: fieldDecoration('Order / Job Number'),
+            decoration: const InputDecoration(
+              labelText: 'Order / Job Number',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.numbers),
+            ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
 
-          // ITEMS HEADER
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Items',
                 style: TextStyle(
-                  fontSize: 21,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
-              OutlinedButton.icon(
+              TextButton.icon(
                 onPressed: addItem,
                 icon: const Icon(Icons.add),
                 label: const Text('Add Item'),
@@ -370,36 +389,115 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // ITEM CARDS
           ...items.asMap().entries.map(
             (entry) {
               final index = entry.key;
               final item = entry.value;
 
-              return _itemCard(index, item);
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: item.descriptionController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: item.quantityController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Qty',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: TextField(
+                              controller: item.priceController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Unit Price',
+                                prefixText: '£ ',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Line Total: £${item.total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (items.length > 1)
+                            IconButton(
+                              onPressed: () => removeItem(index),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
 
-          // VAT
           DropdownButtonFormField<double>(
-            value: vatRate,
-            decoration: fieldDecoration('VAT rate'),
+            initialValue: vatRate,
+            decoration: const InputDecoration(
+              labelText: 'VAT',
+              border: OutlineInputBorder(),
+            ),
             items: const [
               DropdownMenuItem(
-                value: 0,
-                child: Text('0% VAT'),
+                value: 0.0,
+                child: Text('0%'),
               ),
               DropdownMenuItem(
-                value: 5,
-                child: Text('5% VAT'),
+                value: 5.0,
+                child: Text('5%'),
               ),
               DropdownMenuItem(
-                value: 20,
-                child: Text('20% VAT'),
+                value: 20.0,
+                child: Text('20%'),
               ),
             ],
             onChanged: (value) {
@@ -411,45 +509,26 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
             },
           ),
 
-          const SizedBox(height: 25),
+          const SizedBox(height: 24),
 
-          // TOTALS
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _summaryRow('Subtotal', subtotal),
-
-                  const SizedBox(height: 10),
-
-                  _summaryRow(
-                    'VAT (${vatRate.toStringAsFixed(0)}%)',
+                  _totalRow(
+                    'Subtotal',
+                    subtotal,
+                  ),
+                  _totalRow(
+                    'VAT',
                     vat,
                   ),
-
-                  const Divider(height: 25),
-
-                  Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      Text(
-                        '£${total.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  const Divider(),
+                  _totalRow(
+                    'Total',
+                    total,
+                    bold: true,
                   ),
                 ],
               ),
@@ -459,128 +538,49 @@ class _NewInvoicePageState extends State<NewInvoicePage> {
           const SizedBox(height: 24),
 
           SizedBox(
-            height: 56,
+            height: 52,
             child: FilledButton.icon(
               onPressed: saveInvoice,
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(Icons.save),
               label: const Text(
                 'Save Invoice',
                 style: TextStyle(fontSize: 16),
               ),
             ),
           ),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _itemCard(int index, InvoiceItem item) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Item ${index + 1}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
-                ),
-
-                if (items.length > 1)
-                  IconButton(
-                    onPressed: () => removeItem(index),
-                    icon: const Icon(
-                      Icons.delete_outline,
-                    ),
-                  ),
-              ],
+  Widget _totalRow(
+    String label,
+    double amount, {
+    bool bold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight:
+                  bold ? FontWeight.bold : FontWeight.normal,
+              fontSize: bold ? 18 : 16,
             ),
-
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: item.descriptionController,
-              decoration: fieldDecoration('Description'),
-              onChanged: (_) => setState(() {}),
+          ),
+          Text(
+            '£${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontWeight:
+                  bold ? FontWeight.bold : FontWeight.normal,
+              fontSize: bold ? 18 : 16,
             ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: item.quantityController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: fieldDecoration('Quantity'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: TextField(
-                    controller: item.priceController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: fieldDecoration('Unit price (£)'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'Item total: £${item.total.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _summaryRow(String label, double amount) {
-    return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          '£${amount.toStringAsFixed(2)}',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 }
